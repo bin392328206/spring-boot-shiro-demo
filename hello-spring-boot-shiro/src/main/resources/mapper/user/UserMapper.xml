@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--namespace  写的是Dao这个interface接口-->
+<mapper namespace="com.wangbin.hello.spring.boot.shiro.mapper.UserMapper">
+
+    <select id="findByName" parameterType="String" resultType="User">
+    select * from test where name=#{value}
+
+
+    </select>
+
+
+    <select id="findById" parameterType="int" resultType="User">
+    select * from test where id=#{value}
+
+
+    </select>
+
+
+
+
+
+
+
+</mapper>
