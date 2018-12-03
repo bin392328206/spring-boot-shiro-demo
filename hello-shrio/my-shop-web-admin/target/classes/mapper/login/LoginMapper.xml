@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--namespace  写的是Dao这个interface接口-->
+<mapper namespace="com.funtl.my.shop.web.admin.mapper.LoginMapper">
+
+
+    <select id="findLoginID" resultType="User" >
+        SELECT
+          a.id,
+          a.username,
+          a.password,
+          a.phone,
+          a.email,
+          a.created,
+          a.updated
+    FROM tb_user as a
+    where a.username=#{username} or a.email=#{email} or a.phone=#{phone}
+    </select>
+
+    <select id="findById" resultType="User" >
+        SELECT
+          a.id,
+          a.username,
+          a.password,
+          a.phone,
+          a.email,
+          a.created,
+          a.updated
+    FROM tb_user as a
+    where a.username=#{username}
+    </select>
+
+
+
+
+</mapper>

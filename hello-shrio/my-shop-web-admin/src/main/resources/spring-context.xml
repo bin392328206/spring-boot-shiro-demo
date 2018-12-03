@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <!--
+ use-default-filters="false" 表示不扫描注解 默认是true
+ context:exclude-filter 仍然没扫描
+ -->
+    <context:component-scan base-package="com.funtl.my.shop" use-default-filters="true">
+        <context:exclude-filter type="annotation"
+                                expression="org.springframework.stereotype.Controller"></context:exclude-filter>
+    </context:component-scan>
+
+    <context:property-placeholder ignore-unresolvable="true"
+                                  location="classpath:project.properties"></context:property-placeholder>
+
+    <!-- 数据源配置, 使用 Druid 数据库连接池 -->
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource" init-method="init" destroy-method="close">
+        <!-- 数据源驱动类可不写，Druid默认会自动根据URL识别DriverClass -->
+        <property name="driverClassName" value="${jdbc.driverClass}"/>
+
+        <!-- 基本属性 url、user、password -->
+        <property name="url" value="${jdbc.connectionURL}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+
+        <!-- 配置初始化大小、最小、最大 -->
+        <property name="initialSize" value="${jdbc.pool.init}"/>
+        <property name="minIdle" value="${jdbc.pool.minIdle}"/>
+        <property name="maxActive" value="${jdbc.pool.maxActive}"/>
+
+        <!-- 配置获取连接等待超时的时间 -->
+        <property name="maxWait" value="60000"/>
+
+        <!-- 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒 -->
+        <property name="timeBetweenEvictionRunsMillis" value="60000"/>
+
+        <!-- 配置一个连接在池中最小生存的时间，单位是毫秒 -->
+        <property name="minEvictableIdleTimeMillis" value="300000"/>
+        <!--校验的SQL -->
+        <property name="validationQuery" value="${jdbc.testSql}"/>
+        <property name="testWhileIdle" value="true"/>
+        <property name="testOnBorrow" value="false"/>
+        <property name="testOnReturn" value="false"/>
+
+        <!-- 配置监控统计拦截的filters -->
+        <property name="filters" value="stat"/>
+    </bean>
+
+    <!-- 配置 SqlSession -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+        <!-- 用于配置对应实体类所在的包，多个 package 之间可以用 ',' 号分割 -->
+        <property name="typeAliasesPackage" value="com.funtl.my.shop.domain"/>
+        <!-- 用于配置对象关系映射配置文件所在目录 -->
+        <property name="mapperLocations" value="classpath:/mapper/**/*.xml"/>
+        <property name="configLocation" value="classpath:/mybatis-config.xml"></property>
+    </bean>
+    <!-- 扫描 Mapper -->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.funtl.my.shop.web.admin.mapper"/>
+    </bean>
+
+
+    <!--凡是被spring管理的对象叫做bean
+            Shiro中的类以bean的形式交给spring管理。Spring负责Shiro的生命周期
+            spring为Shiro创建对象
+          -->
+    <bean id="lifeCycleBeanProcessor"
+          class="org.apache.shiro.spring.LifecycleBeanPostProcessor"></bean>
+
+    <!--Spring中的代理模式2种
+		1.jdk的动态代理
+			要求被代理者必须实现接口。如果没有实现接口，则动态代理报错
+		2.cglib动态代理
+			不管有无接口都可以生成代理对象。生成的代理对象是目标对象的子类
+		为Shiro中的类生成代理对象。之后以AOP的形式进行操作。
+	  -->
+    <bean
+            class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator"
+            depends-on="lifeCycleBeanProcessor">
+        <!--强制使用cglib生成代理对象  -->
+        <property name="proxyTargetClass" value="true"></property>
+    </bean>
+
+    <!--强调使用cglib生成代理对象  -->
+
+
+    <!--Shiro中最为重要的模块shiro安全中心  -->
+    <bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+
+        <!--shiro安全中心需要通过realm获取真实的数据  名称realm不能修改 -->
+        <property name="realm" ref="UserRealm"></property>
+    </bean>
+    <!-- 为shiro安全中心提供数据 -->
+    <bean id="UserRealm" class="com.funtl.my.shop.web.admin.shiro.UserRealm">
+        <!--添加参数  -->
+        <property name="credentialsMatcher" ref="UserCredential"></property>
+    </bean>
+    <bean id="UserCredential" class="com.funtl.my.shop.web.admin.shiro.UserCredential"/>
+
+    <!--权限认证需要通过安全中心进行校验  -->
+    <bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+        <property name="securityManager" ref="securityManager"></property>
+    </bean>
+
+
+    <!--定义Shiro过滤器  -->
+    <bean id="shiroFilter"  class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+        <!--引入shiro安全中心  -->
+        <property name="securityManager" ref="securityManager"></property>
+
+        <!--登陆页面 如果程序没有进行认证的登陆认证，则默认访问index.jsp  -->
+        <property name="loginUrl" value="/index.jsp"></property>
+
+        <!--过滤器链  过滤器是有顺序的  -->
+        <property name="filterChainDefinitions">
+            <value>
+
+                <!--拦截全部信息  包含url和静态资源文件
+                    authc  拦截
+                    anon   放行
+                  -->
+                /static/**  = anon
+                /login = anon
+                /main=anon
+                /toLogin=anon
+                /""=anon
+                /*=authc
+
+            </value>
+        </property>
+
+    </bean>
+
+
+</beans>
